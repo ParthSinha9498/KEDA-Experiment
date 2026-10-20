@@ -1,0 +1,18 @@
+OCR CPU time per doc vs. model (0.05s/KB):
+   5KB  model 0.250s  measured 0.250s
+   6KB  model 0.300s  measured 0.300s
+   7KB  model 0.350s  measured 0.350s
+   8KB  model 0.400s  measured 0.400s
+   9KB  model 0.450s  measured 0.450s
+  11KB  model 0.550s  measured 0.550s
+  12KB  model 0.600s  measured 0.600s
+  13KB  model 0.650s  measured 0.650s
+  14KB  model 0.700s  measured 0.700s
+  15KB  model 0.750s  measured 0.750s
+[PASS] OCR matches the model: worst deviation 0.2%
+LLM call latency vs. token formula:
+   1 docs  model 2.035s  measured 2.038s
+   4 docs  model 6.640s  measured 6.644s
+  12 docs  model 19.065s  measured 19.084s
+[PASS] LLM matches the model: worst deviation 0.1%
+[PASS] LLM concurrency works: peak calls in flight 5 with limit 5 (must reach it, never exceed it)

@@ -1,0 +1,77 @@
+# KEDA scales OCR and render on their queue depth. The LLM stage has no
+# ScaledObject: more replicas can't raise a rate limit shared through Redis.
+#
+# Scaling path:
+#   0 -> 1   KEDA polls the queue every pollingInterval (5s)
+#   1 -> N   KEDA feeds the metric to the Kubernetes autoscaler (HPA), which
+#            aims for ~listLength queued items per replica, subject to its sync
+#            period, tolerance and the behavior policies below
+#   N -> min the HPA's scale-down stabilization window (30s here, 300s default)
+#   1 -> 0   KEDA, once the queue has been empty for cooldownPeriod (30s)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ocr
+spec:
+  scaleTargetRef:
+    name: ocr
+  pollingInterval: 5
+  cooldownPeriod: 30
+  minReplicaCount: 0  # the keda-1 overlay sets 1
+  maxReplicaCount: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          # Default: +4 pods or doubling per 15s, whichever is larger. This
+          # permits a jump of up to 15 pods per period; it doesn't guarantee one.
+          stabilizationWindowSeconds: 0
+          selectPolicy: Max
+          policies:
+            - {type: Pods, value: 15, periodSeconds: 15}
+        scaleDown:
+          # Default window is 300s, which would hold near-peak replicas through
+          # most of each 300s gap between bursts.
+          stabilizationWindowSeconds: 30
+          selectPolicy: Max
+          policies:
+            - {type: Percent, value: 100, periodSeconds: 15}
+  triggers:
+    - type: redis
+      metadata:
+        address: redis.keda-demo.svc.cluster.local:6379
+        listName: ocr_queue
+        listLength: "50"          # target queued items per replica, not a replica formula
+        activationListLength: "0" # scale up from 0 once anything is queued
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: render
+spec:
+  scaleTargetRef:
+    name: render
+  pollingInterval: 5
+  cooldownPeriod: 30
+  minReplicaCount: 0
+  maxReplicaCount: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:  # same policies as OCR
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          selectPolicy: Max
+          policies:
+            - {type: Pods, value: 15, periodSeconds: 15}
+        scaleDown:
+          stabilizationWindowSeconds: 30
+          selectPolicy: Max
+          policies:
+            - {type: Percent, value: 100, periodSeconds: 15}
+  triggers:
+    - type: redis
+      metadata:
+        address: redis.keda-demo.svc.cluster.local:6379
+        listName: render_queue
+        listLength: "50"
+        activationListLength: "0"

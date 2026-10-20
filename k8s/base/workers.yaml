@@ -1,0 +1,83 @@
+# The three stages, one image. The base runs 1 replica each; overlays either
+# fix the OCR and render counts or hand them to KEDA.
+#
+# CPU: OCR requests 250m with no limit. The request lets all 15 OCR pods fit on
+# one minikube node so they compete for real cores; a limit would throttle each
+# pod and inflate OCR time.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ocr}
+  template:
+    metadata:
+      labels: {app: ocr}
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          image: keda-docs:dev
+          imagePullPolicy: Never  # built locally and loaded with `minikube image load`
+          env:
+            - {name: STAGE, value: ocr}
+            - {name: REDIS_URL, value: "redis://redis:6379/0"}
+          resources:
+            requests: {cpu: 250m, memory: 128Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm
+spec:
+  replicas: 1  # fixed: the shared rate limits, not the replica count, set its throughput
+  selector:
+    matchLabels: {app: llm}
+  template:
+    metadata:
+      labels: {app: llm}
+    spec:
+      terminationGracePeriodSeconds: 60  # a full batch takes ~19s; let in-flight calls finish
+      containers:
+        - name: worker
+          image: keda-docs:dev
+          imagePullPolicy: Never
+          env:
+            - {name: STAGE, value: llm}
+            - {name: REDIS_URL, value: "redis://redis:6379/0"}
+            # Set high enough that the LLM stage doesn't bind; scripts/checks.py verifies it.
+            - {name: LLM_RPM, value: "100000"}
+            - {name: LLM_TPM, value: "50000000"}
+            - {name: LLM_CONCURRENCY, value: "64"}
+            - {name: LLM_MAX_INPUT_TOKENS, value: "32000"}
+            - {name: LLM_FLUSH_S, value: "2.0"}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: render
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: render}
+  template:
+    metadata:
+      labels: {app: render}
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          image: keda-docs:dev
+          imagePullPolicy: Never
+          env:
+            - {name: STAGE, value: render}
+            - {name: REDIS_URL, value: "redis://redis:6379/0"}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 128Mi}

@@ -1,0 +1,37 @@
+# Fixed worker pools on this machine, for development and local trial runs.
+# The blog's four runs all happen on minikube (scripts/run_k8s.sh), so that
+# fixed and KEDA runs share one environment.
+#
+#   docker compose -f docker/docker-compose.yml up -d --build --scale ocr=2 --scale render=2
+#
+# The producer and collector run on the host against localhost:6379.
+name: keda
+
+x-worker: &worker
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: keda-docs:dev
+  depends_on: [redis]
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+
+  ocr:
+    <<: *worker
+    environment: {STAGE: ocr, REDIS_URL: "redis://redis:6379/0"}
+    stop_grace_period: 30s
+
+  llm:
+    <<: *worker
+    environment: {STAGE: llm, REDIS_URL: "redis://redis:6379/0"}
+    stop_grace_period: 60s  # a full batch takes ~19s; let in-flight calls finish
+
+  render:
+    <<: *worker
+    environment: {STAGE: render, REDIS_URL: "redis://redis:6379/0"}
+    stop_grace_period: 30s

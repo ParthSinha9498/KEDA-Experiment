@@ -1,0 +1,10 @@
+Trial run: 1 bursts x 600 docs, 600 results
+LLM limits: rpm=100000 tpm=5e+07 concurrency=64
+  calls 50, mean 12.0 docs/call, mean latency 19.11s, mean 32300 tokens/call
+  limiter wait totals: concurrency 0.1s, rpm 0.0s, tpm 0.0s
+  LLM capacity at observed batches 40.2 docs/s vs. OCR 15.1 docs/s
+[PASS] The LLM doesn't bind: margin 2.7x (need >= 2x)
+  15 render workers, busiest at 59% of the render window
+[PASS] Render busy fraction: busiest worker 59% (need < 80%); meaningful for the fixed-15 run
+[SKIP] Render queue drains: needs the collector's queue-depth series (Phase 2)
+[SKIP] Scale-down behaves as configured: needs the KEDA runs on minikube (Phase 2)

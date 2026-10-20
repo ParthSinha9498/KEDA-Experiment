@@ -1,0 +1,2 @@
+-r requirements-worker.txt
+matplotlib>=3.8

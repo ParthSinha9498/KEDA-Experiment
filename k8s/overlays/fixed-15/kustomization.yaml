@@ -1,0 +1,8 @@
+# Fixed pool: 15 OCR and 15 render workers, no ScaledObjects.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+replicas:
+  - {name: ocr, count: 15}
+  - {name: render, count: 15}

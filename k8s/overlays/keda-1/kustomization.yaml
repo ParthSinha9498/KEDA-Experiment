@@ -1,0 +1,13 @@
+# Control: identical to keda-0 except minReplicaCount 1, so it isolates the
+# cost of scale to zero.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../keda
+patches:
+  - target: {kind: ScaledObject}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
